@@ -266,16 +266,12 @@
       <span class="step-num">4</span>
       合成結果
     </div>
-    <canvas id="resultCanvas"></canvas>
-    <div class="result-actions">
-      <button class="btn-save" id="downloadBtn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        保存する
-      </button>
+    <canvas id="resultCanvas" style="display:none;"></canvas>
+    <img id="resultImg" style="display:none; width:100%; height:auto; border-radius:var(--radius-sm); border:0.5px solid var(--border);" alt="合成結果">
+    <div id="save-hint" style="display:none; margin-top:10px; padding:10px 12px; background:var(--surface2); border-radius:var(--radius-sm); border:0.5px solid var(--border-hi);">
+      <p style="font-size:12px; color:var(--text-mid); text-align:center; line-height:1.6;">
+        📱 画像を<strong style="color:var(--accent);">長押し</strong>して「写真に追加」または「画像を保存」を選んでください
+      </p>
     </div>
   </div>
 
@@ -394,17 +390,16 @@ document.getElementById('applyBtn').addEventListener('click', () => {
   const rctx = rc.getContext('2d');
   rctx.drawImage(img2, 0, 0);
   rctx.drawImage(img1, x, y, w, h, x, y, w, h);
+
+  // canvasをimgに変換してiPhoneで長押し保存できるようにする
+  const resultImg = document.getElementById('resultImg');
+  resultImg.src = rc.toDataURL('image/png');
+  resultImg.style.display = 'block';
+  document.getElementById('save-hint').style.display = 'block';
+
   const rs = document.getElementById('result-card');
   rs.style.display = 'block';
   setTimeout(() => rs.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-});
-
-document.getElementById('downloadBtn').addEventListener('click', () => {
-  const rc = document.getElementById('resultCanvas');
-  const a = document.createElement('a');
-  a.href = rc.toDataURL('image/png');
-  a.download = 'blended_image.png';
-  a.click();
 });
 </script>
 </body>
