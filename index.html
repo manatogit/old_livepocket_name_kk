@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Image Blend</title>
+<style>
+  :root {
+    --bg: #0e0e0f;
+    --surface: #1a1a1c;
+    --surface2: #242426;
+    --border: rgba(255,255,255,0.08);
+    --border-hi: rgba(255,255,255,0.18);
+    --accent: #c8f050;
+    --accent-dim: rgba(200,240,80,0.15);
+    --text: #f0f0ef;
+    --text-mid: #9a9a96;
+    --text-dim: #5a5a56;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', 'Helvetica Neue', sans-serif; }
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+
+  body { display: flex; flex-direction: column; align-items: center; padding: 0 0 60px; }
+
+  header {
+    width: 100%;
+    padding: 28px 20px 20px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  header h1 { font-size: 20px; font-weight: 500; letter-spacing: -0.3px; }
+  header span { font-size: 12px; color: var(--text-dim); font-weight: 300; }
+
+  .container { width: 100%; max-width: 500px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-num {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 0.5px solid var(--border-hi);
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-mid);
+    flex-shrink: 0;
+  }
+
+  .upload-zone {
+    border: 1.5px dashed var(--border-hi);
+    border-radius: var(--radius-sm);
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .upload-zone:active { background: var(--surface2); border-color: var(--accent); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-zone svg { width: 28px; height: 28px; stroke: var(--text-dim); margin-bottom: 6px; }
+  .upload-zone p { font-size: 13px; color: var(--text-mid); }
+  .upload-zone small { font-size: 11px; color: var(--text-dim); }
+
+  .file-preview { display: none; align-items: center; gap: 12px; }
+  .file-preview img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 0.5px solid var(--border-hi); }
+  .file-preview-info { flex: 1; min-width: 0; }
+  .file-preview-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-preview-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .file-change-btn {
+    font-size: 11px; color: var(--text-dim);
+    background: none; border: 0.5px solid var(--border-hi);
+    border-radius: 20px; padding: 4px 10px; cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  #crop-card { display: none; }
+
+  .canvas-container {
+    position: relative;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: #111;
+    border: 0.5px solid var(--border);
+  }
+  #previewCanvas { display: block; width: 100%; height: auto; }
+
+  .fixed-range-info {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 10px 0 14px;
+  }
+  .range-pill {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    background: var(--surface2);
+    border: 0.5px solid var(--border-hi);
+    border-radius: 20px;
+    padding: 3px 10px;
+    color: var(--text-mid);
+  }
+  .range-pill span { color: var(--accent); }
+
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1;
+    padding: 11px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.97); opacity: 0.85; }
+  .btn-ghost { background: var(--surface2); border: 0.5px solid var(--border-hi); color: var(--text-mid); }
+  .btn-accent { background: var(--accent); color: #0e0e0f; }
+
+  #result-card { display: none; }
+  #resultCanvas { display: block; width: 100%; height: auto; border-radius: var(--radius-sm); border: 0.5px solid var(--border); }
+
+  .result-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn-save {
+    flex: 1; padding: 13px;
+    background: var(--accent); color: #0e0e0f;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 500;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-save:active { transform: scale(0.97); opacity: 0.85; }
+
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-dim); flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-dot.ready { background: var(--accent); }
+
+  .size-mismatch {
+    display: none;
+    font-size: 12px;
+    color: #f0906a;
+    background: rgba(240,144,106,0.1);
+    border: 0.5px solid rgba(240,144,106,0.25);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Image Blend</h1>
+  <span>切り抜いて合成</span>
+</header>
+
+<div class="container">
+
+  <!-- Image 1 -->
+  <div class="card">
+    <div class="card-label">
+      <span class="step-num">1</span>
+      切り抜き元
+      <span class="status-dot" id="dot1"></span>
+    </div>
+    <div class="upload-zone" id="zone1">
+      <input type="file" accept="image/*" id="file1">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <path d="M21 15l-5-5L5 21"/>
+      </svg>
+      <p>タップして画像を選択</p>
+      <small>JPEG · PNG · WEBP</small>
+    </div>
+    <div class="file-preview" id="prev1">
+      <img id="thumb1" alt="">
+      <div class="file-preview-info">
+        <div class="file-preview-name" id="name1"></div>
+        <div class="file-preview-meta" id="meta1"></div>
+      </div>
+      <button class="file-change-btn" onclick="resetFile(1)">変更</button>
+    </div>
+  </div>
+
+  <!-- Image 2 -->
+  <div class="card">
+    <div class="card-label">
+      <span class="step-num">2</span>
+      貼り付け先
+      <span class="status-dot" id="dot2"></span>
+    </div>
+    <div class="upload-zone" id="zone2">
+      <input type="file" accept="image/*" id="file2">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <path d="M21 15l-5-5L5 21"/>
+      </svg>
+      <p>タップして画像を選択</p>
+      <small>JPEG · PNG · WEBP</small>
+    </div>
+    <div class="file-preview" id="prev2">
+      <img id="thumb2" alt="">
+      <div class="file-preview-info">
+        <div class="file-preview-name" id="name2"></div>
+        <div class="file-preview-meta" id="meta2"></div>
+      </div>
+      <button class="file-change-btn" onclick="resetFile(2)">変更</button>
+    </div>
+    <div class="size-mismatch" id="sizeMismatch">
+      ⚠ 画像のサイズが異なります。処理は続行できますが、ずれが生じる可能性があります。
+    </div>
+  </div>
+
+  <!-- Crop -->
+  <div class="card" id="crop-card">
+    <div class="card-label">
+      <span class="step-num">3</span>
+      範囲を選択
+    </div>
+    <div class="canvas-container">
+      <canvas id="previewCanvas"></canvas>
+    </div>
+    <div class="fixed-range-info">
+      <div class="range-pill">X <span>190</span></div>
+      <div class="range-pill">Y <span>825</span></div>
+      <div class="range-pill">幅 <span>421</span></div>
+      <div class="range-pill">高さ <span>122</span></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-accent" id="applyBtn">合成する →</button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="card" id="result-card">
+    <div class="card-label">
+      <span class="step-num">4</span>
+      合成結果
+    </div>
+    <canvas id="resultCanvas"></canvas>
+    <div class="result-actions">
+      <button class="btn-save" id="downloadBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        保存する
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const img1 = new Image(), img2 = new Image();
+let img1Loaded = false, img2Loaded = false;
+
+const CROP = { x: 190, y: 825, w: 421, h: 122 };
+
+const canvas = document.getElementById('previewCanvas');
+const ctx = canvas.getContext('2d');
+
+function loadFile(file, imgEl, thumbEl, nameEl, metaEl, prevEl, zoneEl, dotEl, cb) {
+  const url = URL.createObjectURL(file);
+  const tempImg = new Image();
+  tempImg.onload = () => {
+    imgEl.src = url;
+    imgEl.onload = () => { cb(); };
+    thumbEl.src = url;
+    nameEl.textContent = file.name;
+    metaEl.textContent = `${(file.size/1024).toFixed(0)} KB · ${tempImg.naturalWidth}×${tempImg.naturalHeight}px`;
+    prevEl.style.display = 'flex';
+    zoneEl.style.display = 'none';
+    dotEl.classList.add('ready');
+    URL.revokeObjectURL(url);
+  };
+  tempImg.src = url;
+}
+
+document.getElementById('file1').addEventListener('change', e => {
+  if (!e.target.files[0]) return;
+  loadFile(e.target.files[0], img1,
+    document.getElementById('thumb1'),
+    document.getElementById('name1'),
+    document.getElementById('meta1'),
+    document.getElementById('prev1'),
+    document.getElementById('zone1'),
+    document.getElementById('dot1'),
+    () => { img1Loaded = true; checkBothLoaded(); }
+  );
+});
+
+document.getElementById('file2').addEventListener('change', e => {
+  if (!e.target.files[0]) return;
+  loadFile(e.target.files[0], img2,
+    document.getElementById('thumb2'),
+    document.getElementById('name2'),
+    document.getElementById('meta2'),
+    document.getElementById('prev2'),
+    document.getElementById('zone2'),
+    document.getElementById('dot2'),
+    () => { img2Loaded = true; checkBothLoaded(); }
+  );
+});
+
+function resetFile(n) {
+  if (n === 1) {
+    img1Loaded = false;
+    document.getElementById('prev1').style.display = 'none';
+    document.getElementById('zone1').style.display = 'block';
+    document.getElementById('dot1').classList.remove('ready');
+    document.getElementById('file1').value = '';
+  } else {
+    img2Loaded = false;
+    document.getElementById('prev2').style.display = 'none';
+    document.getElementById('zone2').style.display = 'block';
+    document.getElementById('dot2').classList.remove('ready');
+    document.getElementById('file2').value = '';
+  }
+  document.getElementById('crop-card').style.display = 'none';
+  document.getElementById('result-card').style.display = 'none';
+  document.getElementById('sizeMismatch').style.display = 'none';
+}
+
+function checkBothLoaded() {
+  if (!img1Loaded || !img2Loaded) return;
+  const mismatch = img1.naturalWidth !== img2.naturalWidth || img1.naturalHeight !== img2.naturalHeight;
+  document.getElementById('sizeMismatch').style.display = mismatch ? 'block' : 'none';
+  canvas.width = img1.naturalWidth;
+  canvas.height = img1.naturalHeight;
+  drawPreview();
+  document.getElementById('crop-card').style.display = 'block';
+  document.getElementById('crop-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function drawPreview() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img1, 0, 0);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const { x, y, w, h } = CROP;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.drawImage(img1, 0, 0);
+  ctx.restore();
+  const lw = Math.max(2, canvas.width / 180);
+  ctx.strokeStyle = '#c8f050';
+  ctx.lineWidth = lw;
+  ctx.strokeRect(x + lw/2, y + lw/2, w - lw, h - lw);
+  const cs = Math.max(4, lw * 3);
+  ctx.fillStyle = '#c8f050';
+  [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([px,py]) => {
+    ctx.fillRect(px - cs/2, py - cs/2, cs, cs);
+  });
+}
+
+document.getElementById('applyBtn').addEventListener('click', () => {
+  const { x, y, w, h } = CROP;
+  const rc = document.getElementById('resultCanvas');
+  rc.width = img2.naturalWidth;
+  rc.height = img2.naturalHeight;
+  const rctx = rc.getContext('2d');
+  rctx.drawImage(img2, 0, 0);
+  rctx.drawImage(img1, x, y, w, h, x, y, w, h);
+  const rs = document.getElementById('result-card');
+  rs.style.display = 'block';
+  setTimeout(() => rs.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const rc = document.getElementById('resultCanvas');
+  const a = document.createElement('a');
+  a.href = rc.toDataURL('image/png');
+  a.download = 'blended_image.png';
+  a.click();
+});
+</script>
+</body>
+</html>
